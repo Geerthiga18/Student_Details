@@ -5,10 +5,7 @@ const jwt = require('jsonwebtoken');
 exports.register = async (req, res) => {
     try {
         const { username, email, password } = req.body;
-
-        let existingUser = await User.findOne({ 
-            $or: [{ email }, { username }] 
-        });
+        let existingUser = await User.findOne({ $or: [{ email }, { username }] });
 
         if (existingUser) {
             return res.status(400).json({ msg: 'Username or email already exists' });
@@ -18,11 +15,8 @@ exports.register = async (req, res) => {
         const user = new User({ username, email, password: hashedPassword });
         await user.save();
 
-        console.log("User Registered:", user);
-
         res.status(201).json({ msg: 'User registered successfully' });
     } catch (err) {
-        console.error('Register Error:', err);
         res.status(500).json({ msg: 'Server error' });
     }
 };
@@ -32,29 +26,14 @@ exports.login = async (req, res) => {
         const { username, password } = req.body;
         const user = await User.findOne({ username });
 
-        if (!user) {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const newUser = new User({ username, password: hashedPassword });
-            await newUser.save();
-            const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        if (!user) return res.status(400).json({ msg: 'Invalid username or password' });
 
-            return res.json({ token, user: { id: newUser._id, username: newUser.username } });
-        }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ msg: 'Invalid username or password' });
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
         res.json({ token, user: { id: user._id, username: user.username } });
-
     } catch (err) {
-        console.error('Login Error:', err);
         res.status(500).json({ msg: 'Server error' });
     }
-};
-
-exports.forgotPassword = async (req, res) => {
-    res.json({ message: "Forgot password logic goes here" });
-};
-
-exports.resetPassword = async (req, res) => {
-    res.json({ message: "Reset password logic goes here" });
 };
